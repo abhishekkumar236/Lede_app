@@ -10,14 +10,13 @@ import { WebView } from 'react-native-webview';
 import { Surface } from '@/components/surface';
 import { getArticle, saveFullContent, setBookmarked, setFavorite } from '@/db/articles';
 import type { ArticleDetail } from '@/db/types';
-import { extractArticle } from '@/feeds/extract';
-import { toPlainText } from '@/feeds/sanitize';
+import { extractArticle, textLength } from '@/feeds/extract';
 import { buildReaderDocument } from '@/lib/reader-html';
 import { relativeTime } from '@/lib/time';
 import { useTheme } from '@/theme/theme-context';
 import { space, typeScale } from '@/theme/tokens';
 
-const TRUNCATED_THRESHOLD = 1800;
+const USABLE_LENGTH = 1800;
 
 type Mode = 'reader' | 'live';
 
@@ -42,21 +41,22 @@ export default function ArticleScreen() {
       if (!active || !found) return;
       setArticle(found);
 
-      const length = toPlainText(found.content, Number.MAX_SAFE_INTEGER)?.length ?? 0;
-      const needsFullText =
-        !found.fullContent && Boolean(found.url) && length < TRUNCATED_THRESHOLD;
-      if (!needsFullText) return;
+      if (found.fullContent || !found.url) return;
 
+      const feedLength = textLength(found.content);
       setExtracting(true);
-      return extractArticle(found.url as string)
+
+      return extractArticle(found.url)
         .then(async (html) => {
+          if (!active) return;
+          if (textLength(html) <= feedLength) return;
           await saveFullContent(db, found.id, html);
           if (active) setArticle((current) => (current ? { ...current, fullContent: html } : current));
         })
         .catch(() => {
-          if (!active) return;
+          if (!active || feedLength >= USABLE_LENGTH) return;
           setMode('live');
-          setNote('Showing the original page');
+          setNote('Publisher blocks full text \u2014 showing the original');
         })
         .finally(() => {
           if (active) setExtracting(false);
@@ -93,11 +93,16 @@ export default function ArticleScreen() {
     setNote(null);
     try {
       const html = await extractArticle(article.url);
+      if (textLength(html) <= textLength(article.content)) {
+        setMode('live');
+        setNote('Nothing more to load \u2014 showing the original');
+        return;
+      }
       await saveFullContent(db, article.id, html);
       setArticle((current) => (current ? { ...current, fullContent: html } : current));
     } catch {
       setMode('live');
-      setNote('Showing the original page');
+      setNote('Publisher blocks full text \u2014 showing the original');
     } finally {
       setExtracting(false);
     }

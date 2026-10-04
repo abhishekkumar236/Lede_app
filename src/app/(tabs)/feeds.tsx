@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip } from '@/components/chip';
 import { PickerSheet, type PickerOption } from '@/components/picker-sheet';
 import { Surface } from '@/components/surface';
-import { removeFeed } from '@/db/feeds';
+import { removeFeed, setSkipStubs } from '@/db/feeds';
 import { useFeedActions } from '@/hooks/use-feed-actions';
 import { useFeeds } from '@/hooks/use-feeds';
 import { useSync } from '@/hooks/use-sync';
@@ -78,6 +78,12 @@ export default function FeedsScreen() {
             ? `\n\n${result.statesSkipped} markers skipped because those articles are not downloaded yet. Refresh and restore again to apply them.`
             : '')
       );
+    });
+
+  const togglePreviews = (id: number, current: boolean) =>
+    guard(async () => {
+      await setSkipStubs(db, id, !current);
+      await reload();
     });
 
   const confirmRemove = (id: number, title: string) =>
@@ -192,6 +198,11 @@ export default function FeedsScreen() {
           <Text style={[typeScale.micro, { color: colors.textFaint }]}>
             {feeds.length > 0 ? `${feeds.length} SUBSCRIPTIONS` : 'SUBSCRIPTIONS'}
           </Text>
+          {feeds.length > 0 ? (
+            <Text style={[typeScale.caption, { color: colors.textFaint }]}>
+              Tap a feed to set its category. The eye icon hides preview-only articles.
+            </Text>
+          ) : null}
         </View>
 
         <Surface style={styles.list} cornerRadius={radius.md}>
@@ -227,6 +238,14 @@ export default function FeedsScreen() {
                   <Text style={[typeScale.micro, { color: colors.accent }]}>{unread.get(feed.id)}</Text>
                 </View>
               ) : null}
+
+              <Pressable onPress={() => togglePreviews(feed.id, feed.skipStubs)} hitSlop={10}>
+                <Ionicons
+                  name={feed.skipStubs ? 'eye-off' : 'eye-outline'}
+                  size={18}
+                  color={feed.skipStubs ? colors.accent : colors.textFaint}
+                />
+              </Pressable>
 
               <Pressable onPress={() => confirmRemove(feed.id, feed.title)} hitSlop={10}>
                 <Ionicons name="close" size={18} color={colors.textFaint} />

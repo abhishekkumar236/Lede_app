@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 
 export const DATABASE_NAME = "reader.db";
 
-const LATEST_VERSION = 2;
+const LATEST_VERSION = 3;
 
 export async function migrate(db: SQLiteDatabase) {
     await db.execAsync("PRAGMA journal_mode = WAL");
@@ -80,6 +80,13 @@ export async function migrate(db: SQLiteDatabase) {
       ALTER TABLE articles ADD COLUMN full_fetched_at INTEGER;
     `);
         version = 2;
+    }
+
+    if (version < 3) {
+        await db.execAsync(`
+      ALTER TABLE feeds ADD COLUMN skip_stubs INTEGER NOT NULL DEFAULT 0;
+    `);
+        version = 3;
     }
 
     if (version !== LATEST_VERSION) {

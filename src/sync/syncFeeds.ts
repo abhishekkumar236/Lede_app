@@ -6,6 +6,7 @@ import type { Feed } from '@/db/types';
 import { FeedFetchError, fetchFeed } from '@/feeds/fetch';
 import { discoverFeedsInHtml, guessFeedUrls } from '@/feeds/discover';
 import { parseFeed } from '@/feeds/parse';
+import { toPlainText } from '@/feeds/sanitize';
 import { hostLabel } from '@/lib/url';
 
 import { delay, mapWithConcurrency } from './limit';
@@ -14,11 +15,13 @@ const HOST_CONCURRENCY = 4;
 const SAME_HOST_DELAY_MS = 400;
 const RETENTION_DAYS = 45;
 const KEEP_PER_FEED = 200;
+const STUB_LENGTH = 600;
 
 export type SyncSummary = {
   checked: number;
   notModified: number;
   inserted: number;
+  skipped: number;
   failed: number;
 };
 
@@ -50,7 +53,15 @@ async function syncOne(db: SQLiteDatabase, feed: Feed, summary: SyncSummary) {
     }
 
     const parsed = parseFeed(result.body);
-    summary.inserted += await insertArticles(db, feed.id, parsed.articles);
+    const articles = feed.skipStubs
+      ? parsed.articles.filter(
+          (article) =>
+            (toPlainText(article.content, Number.MAX_SAFE_INTEGER)?.length ?? 0) >= STUB_LENGTH
+        )
+      : parsed.articles;
+
+    summary.skipped += parsed.articles.length - articles.length;
+    summary.inserted += await insertArticles(db, feed.id, articles);
     await recordFetchSuccess(db, feed.id, {
       etag: result.etag,
       lastModified: result.lastModified,
@@ -68,7 +79,7 @@ async function syncOne(db: SQLiteDatabase, feed: Feed, summary: SyncSummary) {
 
 export async function syncFeeds(db: SQLiteDatabase, feeds?: Feed[]): Promise<SyncSummary> {
   const due = feeds ?? (await feedsDueForRefresh(db));
-  const summary: SyncSummary = { checked: 0, notModified: 0, inserted: 0, failed: 0 };
+  const summary: SyncSummary = { checked: 0, notModified: 0, inserted: 0, skipped: 0, failed: 0 };
 
   if (due.length === 0) return summary;
 

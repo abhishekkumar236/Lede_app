@@ -12,13 +12,14 @@ type Row = {
     last_modified: string | null;
     last_fetched_at: number | null;
     poll_interval_ms: number;
+    skip_stubs: number;
     failure_count: number;
     last_error: string | null;
 };
 
 const COLUMNS = `
   id, url, title, site_url, category_id, etag, last_modified,
-  last_fetched_at, poll_interval_ms, failure_count, last_error
+  last_fetched_at, poll_interval_ms, skip_stubs, failure_count, last_error
 `;
 
 function toFeed(row: Row): Feed {
@@ -32,6 +33,7 @@ function toFeed(row: Row): Feed {
         lastModified: row.last_modified,
         lastFetchedAt: row.last_fetched_at,
         pollIntervalMs: row.poll_interval_ms,
+        skipStubs: row.skip_stubs === 1,
         failureCount: row.failure_count,
         lastError: row.last_error,
     };
@@ -157,4 +159,8 @@ export async function feedsDueForRefresh(
         now,
     );
     return rows.map(toFeed);
+}
+
+export async function setSkipStubs(db: SQLiteDatabase, id: number, value: boolean) {
+    await db.runAsync("UPDATE feeds SET skip_stubs = ? WHERE id = ?", value ? 1 : 0, id);
 }

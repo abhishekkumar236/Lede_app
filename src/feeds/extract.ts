@@ -2,7 +2,7 @@ import { FeedFetchError, decodeBody } from './fetch';
 import { sanitizeHtml, toPlainText } from './sanitize';
 
 const BROWSER_USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 Folio/1.0";
+  'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 Lede/1.0';
 
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_PAGE_BYTES = 4 * 1024 * 1024;
@@ -65,6 +65,10 @@ function resolveUrls(html: string, pageUrl: string): string {
   );
 }
 
+export function textLength(html: string | null | undefined): number {
+  return toPlainText(html, Number.MAX_SAFE_INTEGER)?.length ?? 0;
+}
+
 export async function extractArticle(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -72,10 +76,10 @@ export async function extractArticle(url: string): Promise<string> {
   try {
     const response = await fetch(url, {
       headers: {
-                "User-Agent": BROWSER_USER_AGENT,
-                Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
-                "Accept-Language": "en",
-            },
+        'User-Agent': BROWSER_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'Accept-Language': 'en',
+      },
       signal: controller.signal,
       redirect: 'follow',
     });
@@ -96,15 +100,20 @@ export async function extractArticle(url: string): Promise<string> {
       stripped,
     ];
 
+    let best: { html: string; length: number } | null = null;
+
     for (const candidate of candidates) {
       if (!candidate) continue;
       const collected = collectBlocks(candidate);
-      const plain = toPlainText(collected, Number.MAX_SAFE_INTEGER);
-      if (plain && plain.length >= MIN_USEFUL_LENGTH) {
-        const cleaned = sanitizeHtml(resolveUrls(collected, url));
-        if (cleaned) return cleaned;
-      }
+      const length = textLength(collected);
+      if (length < MIN_USEFUL_LENGTH) continue;
+      if (best && length <= best.length) continue;
+
+      const cleaned = sanitizeHtml(resolveUrls(collected, url));
+      if (cleaned) best = { html: cleaned, length };
     }
+
+    if (best) return best.html;
 
     throw new FeedFetchError('could not find article text on the page');
   } catch (error) {

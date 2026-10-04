@@ -39,25 +39,29 @@ app reloads.
 ### Release APK
 
 ```bash
-KS_PASS=$(node -e "console.log(require('./credentials.json').android.keystore.keystorePassword)")
-cd android && ./gradlew assembleRelease \
-  -PreactNativeArchitectures=arm64-v8a \
-  -Pandroid.injected.signing.store.file="$PWD/../credentials/release.keystore" \
-  -Pandroid.injected.signing.store.password="$KS_PASS" \
-  -Pandroid.injected.signing.key.alias=lede-upload \
-  -Pandroid.injected.signing.key.password="$KS_PASS"
+npm run apk              # arm64 only (every phone since ~2016), ~45 MB
+npm run apk:install      # build, then install on the connected device
+./tools/build-apk.sh --all-arch   # universal, ~108 MB, only if you need x86
 ```
 
-Output lands at `android/app/build/outputs/apk/release/app-release.apk`, around 45 MB.
-It is standalone: the JS is compiled in, so no Metro and no laptop.
+The APK lands at `android/app/build/outputs/apk/release/app-release.apk` and is
+copied to `~/Desktop/Lede-<version>.apk`. It is standalone: the JS is compiled in,
+so no Metro and no laptop.
 
-`-PreactNativeArchitectures=arm64-v8a` matters. Without it you get a universal APK
-carrying four CPU architectures and the file is 108 MB, of which 47 MB is x86 code
-for emulators you will never ship to.
+First build takes around 13 minutes; later ones are about 30 seconds off Gradle's
+cache.
+
+`--all-arch` exists but you almost never want it. The universal APK carries four
+CPU architectures and 47 MB of that is x86 code for emulators.
 
 Signing is passed on the command line rather than written into
 `android/app/build.gradle`, because `android/` is regenerated (see
-[Things that will bite you](#things-that-will-bite-you)).
+[Things that will bite you](#things-that-will-bite-you)). The password is read
+from `credentials.json`, which is gitignored along with `credentials/`.
+
+To install a new build over an old one, bump `android.versionCode` in `app.json`
+and run `npx expo prebuild --platform android` first — Android refuses to install
+an APK whose versionCode is not higher.
 
 **Back up `credentials/release.keystore`.** It is gitignored, so it exists in one
 place only. Android refuses to install an update signed by a different key, so

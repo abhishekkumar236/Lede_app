@@ -13,6 +13,7 @@ export type Feed = {
     lastModified: string | null;
     lastFetchedAt: number | null;
     pollIntervalMs: number;
+    skipStubs: boolean;
     failureCount: number;
     lastError: string | null;
 };
