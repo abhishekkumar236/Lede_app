@@ -161,6 +161,14 @@ export async function feedsDueForRefresh(
     return rows.map(toFeed);
 }
 
-export async function setSkipStubs(db: SQLiteDatabase, id: number, value: boolean) {
-    await db.runAsync("UPDATE feeds SET skip_stubs = ? WHERE id = ?", value ? 1 : 0, id);
+export async function setSkipStubs(
+    db: SQLiteDatabase,
+    id: number,
+    value: boolean,
+) {
+    await db.runAsync(
+        "UPDATE feeds SET skip_stubs = ? WHERE id = ?",
+        value ? 1 : 0,
+        id,
+    );
 }

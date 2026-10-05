@@ -271,7 +271,11 @@ export async function pruneArticles(
     );
 }
 
-export async function saveFullContent(db: SQLiteDatabase, articleId: number, html: string) {
+export async function saveFullContent(
+    db: SQLiteDatabase,
+    articleId: number,
+    html: string,
+) {
     await db.runAsync(
         "UPDATE articles SET full_content = ?, full_fetched_at = ? WHERE id = ?",
         html,

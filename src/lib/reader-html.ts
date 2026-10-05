@@ -1,15 +1,17 @@
-import type { Palette } from '@/theme/tokens';
+import type { Palette } from "@/theme/tokens";
 
 export function buildReaderDocument(input: {
-  title: string;
-  content: string | null;
-  colors: Palette;
-  topPadding: number;
-  bottomPadding: number;
+    title: string;
+    content: string | null;
+    colors: Palette;
+    topPadding: number;
+    bottomPadding: number;
 }): string {
-  const body = input.content ?? '<p class="empty">This feed only provides a headline. Open the original to read it.</p>';
+    const body =
+        input.content ??
+        '<p class="empty">This feed only provides a headline. Open the original to read it.</p>';
 
-  return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
